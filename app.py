@@ -1,38 +1,49 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
+import json
 
 app = Flask(__name__)
+CORS(app)  # This will enable CORS for all routes
+
+
+def extract_alphabets_and_numbers(data):
+    alphabets = [char for char in data if isinstance(char, str) and char.isalpha()]
+    numbers = [int(num) for num in data if isinstance(num, (int, str)) and str(num).isdigit()]
+    highest_lowercase_alphabet = max([char for char in alphabets if char.islower()], default = None)
+    return alphabets, numbers, highest_lowercase_alphabet
+
 
 @app.route('/bfhl', methods=['POST'])
-def process_data():
+def bfhl():
     try:
-        data = request.json.get('data', [])
-        user_id = "john_doe_17091999"
-        email = "john@xyz.com"
-        roll_number = "ABCD123"
+        # Parse the incoming JSON request
+        request_data = request.get_json()
+        if 'data' not in request_data:
+            return jsonify({'error': 'Invalid JSON structure. "data" field is required.'}), 400
 
-        numbers = [item for item in data if item.isdigit()]
-        alphabets = [item for item in data if item.isalpha()]
-        highest_lowercase = sorted([ch for ch in alphabets if ch.islower()])[-1:] if any(ch.islower() for ch in alphabets) else []
+        data = request_data['data']
 
+        if not isinstance(data, list):
+            return jsonify({'error': '"data" should be a list.'}), 400
+
+        # Process the data
+        alphabets, numbers, highest_lowercase_alphabet = extract_alphabets_and_numbers(data)
+
+        # Prepare the response
         response = {
-            "is_success": True,
-            "user_id": user_id,
-            "email": email,
-            "roll_number": roll_number,
-            "numbers": numbers,
-            "alphabets": alphabets,
-            "highest_lowercase_alphabet": highest_lowercase
+            'alphabets': alphabets,
+            'numbers': numbers,
+            'highest_lowercase_alphabet': highest_lowercase_alphabet
         }
-        return jsonify(response)
-    except Exception as e:
-        return jsonify({"is_success": False, "error": str(e)}), 400
 
-@app.route('/bfhl', methods=['GET'])
-def get_operation_code():
-    response = {
-        "operation_code": 1
-    }
-    return jsonify(response), 200
+        return jsonify(response)
+
+    except json.JSONDecodeError:
+        return jsonify({'error': 'Invalid JSON format.'}), 400
+
+    except Exception as e:
+        return jsonify({'error': f'Server Error: {str(e)}'}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True)
